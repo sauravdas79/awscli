@@ -1,0 +1,135 @@
+provider "aws" {
+  access_key = ""
+  secret_key = ""
+  region     = "us-east-2"
+}
+
+resource "aws_instance" "example" {
+  ami           = "ami-0653e888ec96eab9b"
+  instance_type = "t2.micro"
+}
+---------------------------------------------------------------------------------------------------------
+### whenever you run you have to do terraform init at first whenever you create a new directory ######
+sudo terraform init
+
+Terraform command overview
+terraform apply
+terraform destroy
+terraform fmt
+terraform get
+terraform graph
+terraform import
+terraform output
+terraform plan
+terraform push
+terraform refresh
+terraform remote
+terraform show
+terraform state
+terraform taint
+terraform validate
+terraform untaint
+--------------------------------------------------------------------------------------------------------------------
+$ aws --version
+$ aws configure
+*** Using awscli to build your VPC, Subnet, Gateway, and security group
+## Let now create new VPC that 192.168.0.0/16 CIDR block (IP range: 192.168.0.0) then capture vpcId:
+$ aws ec2 help
+$ aws ec2 create-vpc help
+$ aws ec2 create-vpc --cidr-block 192.168.0.0/16
+
+----*** "VpcId": "vpc-08f8a62d86c4c6813", **************
+
+Now create the first subnet under the VPC(vpc-08f8a62d86c4c6813) that has 192.168.0.0/24 CIDR block and specify the availablity zone
+us-east-2a then capture subnet id
+
+$ aws ec2 create-subnet --vpc-id vpc-08f8a62d86c4c6813 --cidr-block 192.168.0.0/24 --availability-zone us-east-2a
+$ aws ec2 create-subnet --vpc-id vpc-08f8a62d86c4c6813 --cidr-block 192.168.1.0/24 --availability-zone us-east-2b
+
+aws ec2 describe-subnets --filters "Name=vpc-id,Values=vpc-08f8a62d86c4c6813" --query "Subnets[*].{Vpc:VpcId,CIDR:CidrBlock,AZ:AvailabilityZone,Id:SubnetId}" --output=table
+---------------------------------------------------------------------------------------
+|                                   DescribeSubnets                                   |
++------------+-----------------+----------------------------+-------------------------+
+|     AZ     |      CIDR       |            Id              |           Vpc           |
++------------+-----------------+----------------------------+-------------------------+
+|  us-east-2a|  192.168.0.0/24 |  subnet-0afe4d9678b39a272  |  vpc-08f8a62d86c4c6813  |
+|  us-east-2b|  192.168.1.0/24 |  subnet-0ca8e1c046d05221c  |  vpc-08f8a62d86c4c6813  |
++------------+-----------------+----------------------------+-------------------------+
+-----------------------------------------------------------------------------------------------
+New we need to create IGW to access it from the internet. Then, in the subnets under VPC is assign to IGW
+if it routes to IGW the subnet is classified as public subnet.
+
+1) Lets' configure for (192.168.0.0/24)
+
+$ aws ec2 create-internet-gateway 
+
+{
+   "InternetGateway": {
+       "Attachments": [],
+       "InternetGatewayId": "igw-e50b849d",
+       "Tags": []
+    }
+}
+--------------------------------------------------------------------------------
+2) Now Attach IGW (igw-e50b849d) to your VPC (vpc-08f8a62d86c4c6813):
+$ aws ec2 attach-internet-gateway help
+$ aws ec2 attach-internet-gateway --internet-gateway-id igw-e50b849d --vpc-id vpc-08f8a62d86c4c6813
+
+--------------------------------------------------------------------------
+3) Create a routing table on VPC (vpc-08f8a62d86c4c6813) and then capture RouteTableId:
+$ aws ec2 create-route-table --vpc-id vpc-08f8a62d86c4c6813
+
+4) Set the default route (0.0.0.0/0) for route table (rtb-a9e791d5) as IGW (igw-e50b849d):
+$ aws ec2 create-route --route-table-id rtb-22574640 --destination-cidr-block 0.0.0.0/0 --gateway-id igw-e50b849d
+
+5) Associate route table (rtb-a9e791d5) to public subnet (subnet-6296863f):
+$ aws ec2 associate-route-table --route-table-id rtb-a9e791d5 --subnet-id subnet-6296863f
+$ aws ec2 associate-route-table --route-table-id rtb-22574640 --subnet-id subnet-9d4a7b6c
+--------------------------------------------------------------------------------------------
+6) Enable autoassign public IP on the public subnet (subnet-6296863f):
+$ aws ec2 modify-subnet-attribute --subnet-id subnet-6296863f --map-public-ip-on-launch
+----------------------------------------------------------------------------------------
+7) NAT-GW needs a Global IP address, so create Elastic IP (EIP):
+$ aws ec2 allocate-address
+  "eipalloc-bad28bb3",
+8) Create NAT-GW on the public subnet (subnet-6296863f) and assign EIP (eipalloc-bad28bb3). Then, capture NatGatewayId.
+    Since NAT-GW needs to access the internet, it must be located on the public subnet instead of the private subnet.
+$ aws ec2 create-nat-gateway --subnet-id subnet-6296863f --allocation-id eipalloc-bad28bb3
+
+9) Create the route table and capture RouteTableId:
+$ aws ec2 create-route-table --vpc-id vpc-69cfbd12
+10) Set the default route (0.0.0.0/0) of the route table (rtb-70f1870c) to NAT-GW (nat-0b12be42c575bba43):
+$ aws ec2 create-route --route-table-id rtb-70f1870c --nat-gateway-id nat-0b12be42c575bba43 --destination-cidr-block 0.0.0.0/0
+
+11) Associate route table (rtb-70f1870c) to private subnet (subnet-ce947da9):
+$ aws ec2 associate-route-table --route-table-id rtb-70f1870c --subnet-id subnet-ce947da9
+-------------------------------------------------------------------------------------------------------
+12) Create one security group for the public subnet on VPC (vpc-69cfbd12):
+$ aws ec2 create-security-group --vpc-id vpc-69cfbd12 --group-name public --description "public facing host"
+
+13) Add the ssh allow rule to the public security group (sg-dd8a3f94):
+$ aws ec2 authorize-security-group-ingress --group-id sg-dd8a3f94 --protocol tcp --port 22 --cidr 0.0.0.0/0
+
+14) Add the http allow rule to the public security group (sg-dd8a3f94):
+$ aws ec2 authorize-security-group-ingress --group-id sg-dd8a3f94 --protocol tcp --port 80 --cidr 0.0.0.0/0
+
+15) Create a second security group for the private subnet on VPC (vpc-69cfbd12):
+$ aws ec2 create-security-group --vpc-id vpc-69cfbd12 --group-name private --description "private subnet host"
+16) Add an ssh allow rule to the private security group (sg-a18c39e8):
+$ aws ec2 authorize-security-group-ingress --group-id sg-a18c39e8 --protocol tcp --port 22 --source-group sg-dd8a3f94
+$ aws ec2 describe-security-groups --filters
+---------------------------------------------------------------------------------------------------------
+16) EC2 Upload your ssh public key (assume you have a public key that is located at ~/.ssh/id_rsa.pub):
+$ aws ec2 import-key-pair --key-name=chap6-key --public-key-material "`cat ~/.ssh/id_rsa.pub`"
+$ aws ec2 run-instances --image-id ami-1853ac65 --instance-type t2.nano --key-name chap6-key --security-group-ids sg-dd8a3f94 --subnet-id subnet-6296863f
+$ aws ec2 describe-instances --filters 
+
+
+
+
+
+
+
+
+
+
