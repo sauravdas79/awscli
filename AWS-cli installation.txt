@@ -1,0 +1,480 @@
+Install AWS CLI on Linux ubuntu.
+---------------------------------------
+$ sudo apt-get install python-pip
+
+After pip is install then start with AWS cli
+
+$ sudo pip install awscli
+
+now check for aws cli version
+$ aws--version
+
+aws-cli/1.16.190 Python/2.7.12 Linux/4.4.0-1085-aws botocore/1.12.180
+-----------------------------
+***Configur AWS CLI ******
+$ aws configure
+AWS Access Key ID [None]: 888888888888888888
+AWS Secret Access Key [None]: Uxsxsxxxxxxxxxxxxxxx
+Default region name [None]: us-east-2  **ohio****
+
+------------------------------------------------
+AWS CLI configur
+$ aws ec2 describe-instances
+it gives the detials in json
+$ aws ec2 describe-instances --output table
+
+$ aws ec2 describe-instances --output text
+---------------------------------------------------
+AWS CLI coniguration files and where it is stored
+aws help, below are example
+$ aws iam help
+$ aws iam create-role help
+$ aws ec2 describe-instance help
+------------------------------------------------
+AWS CLI auto completion
+$ aws --version
+aws-cli/1.16.190 Python/2.7.12 Linux/4.4.0-1085-aws botocore/1.12.180
+for auto completion to be enable 
+$ echo $SHELL
+/bin/bash
+$ which aws_completer
+/usr/local/bin/aws_completer
+$ complete -C '/usr/local/bin/aws_completer' aws
+----------------------------------------------------------
+
+AWS CLI filter option
+Fliter output on server side (filter)
+Filter output on client side (query)
+example
+$ aws ec2 describe-instances --filter Name=instance-type,Values=t2.micro --output table
+
+AWS CLI query option
+
+$ aws ec2 describe-regions --query 'Regions [?RegionName==`us-east-2`]'
+$ aws ec2 describe-regions
+$ aws ec2 describe-regions --query 'Regions [?RegionName==`us-west-2`]'
+$ aws ec2 describe-regions --query 'Regions [?RegionName==`us-west-1`]'
+
+US East (Ohio)	        us-east-2
+US East (N. Virginia)	us-east-1
+US West (N. California)	us-west-1
+US West (Oregon)	us-west-2
+------------------------------------------------
+AWS CLI dry-run option
+Testing Permissions -Dry-Run Option 
+$ aws ec2 describe-regions --dry-run
+An error occurred (DryRunOperation) when calling the DescribeRegions operation: Request would have succeeded, but DryRun flag is set.
+------------------------------------------------------
+Introduction to JMESPath terminal
+$ aws s3 help
+$ aws s3 mb help #mb means make bucket
+exmaple  aws s3 mb s3://mybucket --region us-west-1
+
+       Output:
+
+          make_bucket: s3://mybucket
+---
+Setting up a JMESPath terminal
+$ sudo pip install jmespath-terminal
+
+$ aws ec2 describe-regions | jpterm
+
+------------------------------------------
+Setup JMESPath terminal
+JMESPATH Expression: Regions[?RegionName==`us-east-2`]
+
+[
+  {
+   "Endpoint": "ec2.us-east-2.amazonaws.com",
+   "RegionName": "us-east-2"
+  }
+]
+
+To exit out of JMESPath terminal F5 or Ctl + c
+-------------------
+Manipulate below with JMESPath
+$ aws ec2 describe-instances
+$ aws ec2 describe-instances | jpterminal
+
+JMESPATH Expression: Reservations[].instances[].PublicIpAddress
+--------------------------------
+Next running with query options
+
+$ aws ec2 describe-instances --query 'Reservations[].Instances[].PublicIpAddress'
+-------------------------------------------------------------------------------------
+CHAPTER 4 AWS CLI Commands for AWS EC2 
+CLI Commands for AWS EC2
+EC2 Components
+  . Key Pair
+  . Security Group  -- which port needs to connected
+  . AMI           -- which operating system eg Linux or window machine
+  . VPC & Subnet
+  . Elastic IP Address  --- so our instances has staticIP address
+
+$ aws ec2 help
+$ aws ec2 create-key-pair help
+$ aws ec2 create-key-pair --key-name demoawscli --output text > democli.pem
+
+----------------------------------
+AWS security group
+$ aws ec2 create-security-group help
+Next creating security group
+$ aws ec2 create-security-group --group-name saurav-sg --description "awscli demo group" --vpc-id vpc-1803cf70
+
+{
+    "GroupId": "sg-0afd88592f50edd18"
+}
+
+
+VPC id	
+vpc-1803cf70
+
+$ aws ec2 describe-security-groups help
+$ aws ec2 describe-security-groups --group-ids sg-0afd88592f50edd18
+--------------------------------------------------
+AWS AMI and AWS VPC
+AWS masterclass
+$ aws
+
+
+---------------------------------------------------------
+Deploy AWS EC2 instance
+$ aws ec2 run-instances help
+example EC2-VPC 
+$ aws ec2 run-instances --image-id ami-0e7589a8422e3270f --count 1 --instance-type t2.micro --key-name MyKeyPair --security-group-ids sg-1a2b3c4d --subnet-id subnet-6e7f829e
+
+real example
+$ aws ec2 run-instances --image-id ami-0e7589a8422e3270f --count 1 --instance-type t2.micro  --subnet-id subnet-b8b2bbc3 --key-name k8s-hard-way --security-group-ids sg-0afd88592f50edd18 --dry-run
+---------------------------------------------------------------------
+AWS elastic IP address
+$ aws ec2 help
+$ aws ec2 allocate-address
+{
+    "PublicIp": "3.15.92.189",
+    "Domain": "vpc",
+    "AllocationId": "eipalloc-0cd848be302745fa9",
+    "PublicIpv4Pool": "amazon"
+}
+now we need assign the address to ec2 instance
+$ aws ec2 associate-address help
+
+$ aws ec2 associate-address --instance-id i-0b263919b6498b123 --allocation-id eipalloc-0cd848be302745fa9
+Now to verify everything let describe.
+
+$ aws ec2 describe-instances
+Also we can pass user-data when we launch ec2 instance example below
+$ aws ec2 run-instances --image-id ami-0e7589a8422e3270f --count 1 --instance-type   t2.micro  --subnet-id subnet-b8b2bbc3 --key-name k8s-hard-way --security-group-   ids sg-0afd88592f50edd18 --user-data "sudo apt-get install nginx"
+---------------------------------------------------
+Terminate AWS EC2 instance
+$ aws ec2 terminate-instances help
+ 
+$ aws ec2 terminate-instances --instance-ids i-1234567890abcdef0
+--------------------------------------------------------------------------
+AWS CLI and AWS S3  Simple storage service 
+to get help on s3 bucket
+$ aws s3 help
+$ aws s3 mb help --## mb = makebucket
+
+$ aws s3 mb s3://kube-hard-way --region us-east-2
+** to upload a file to s3 we will create a text file
+$ sudo vim test1
+$ mkdir awsclidemo
+$ mv test1 awsclidemo/
+$ cd awsclidemo
+
+$ aws s3 cp help
+uploading the test file in s3 bucket s3://kube-hard-way
+$ aws s3 cp test1 s3://kube-hard-way/test1
+upload: ./test1 to s3://kube-hard-way/test1
+
+$ aws s3 cp help
+AWS ls command to list the files in the bucket
+$ aws s3 ls s3://kube-hard-way
+$ aws s3 cp test2 s3://kube-hard-way/test2
+to verify the file in bucket
+$ aws s3 ls s3://kube-hard-way
+
+Now uploading file to s3 using storageclass as STANDARD_IA
+
+$ aws s3 cp test3 s3://kube-hard-way/test3 --storage-class STANDARD_IA
+---------------------------------------------
+Moving AWS S3 object with AWS CLI
+moving all the object from the s3 bucket to our local system
+downloading multiple files to local
+$ aws s3 mv s3://kube-hard-way . --recursive
+
+Uploading multiple files from local to s3
+$ aws s3 cp /home/ubuntu/awsclidemo s3://kube-hard-way --recursive
+------------------
+Using mv command to upload files to s3 using exclude and include filter
+$ aws s3 mv. s3://kube-hard-way --recursive --exclude '*' --include '*.txt'
+--------------------------------------------------------------------
+Synch AWS S# Object with AWS cli
+$ touch test4.txt
+$ aws s3 sync . s3://kube-hard-way
+upload: ./test4.txt to s3://kube-hard-way/test4.txt
+-------------
+Delete from s3 using sync command with compare with local files
+$ sudo rm test2
+$ aws s3 sync . s3://kube-hard-way --delete
+---------------------------------------------
+Using acl with sync command to read bucket object.
+creating new file in local
+$ touch text5.txt
+$ aws s3 sync . s3://kube-hard-way --acl public-read
+hear we give permission to public read for our newly sync object.
+------------------------------------------------------------------
+Delete AWS S3 objects using AWS CLI 
+Before deleting a bucket to remove all the object
+$ aws s3 rb s3://kube-hard-way
+error
+$ aws s3 rm s3://kube-hard-way/test1
+using --force command to delete objects
+$ aws s3 rb s3://kube-hard-way --force   
+it will delete all files on bucket and then remove the bucket kube-hard-way
+------------------------------------------------------------------------------
+Chapter 6 AWS IAM aws cli command
+List AWS IAM Users via AWS CLIq
+$ aws iam help
+$ aws iam list-users
+$ aws iam create-user --user-name kubeuser
+
+{
+    "User": {
+        "UserName": "kubeuser",
+        "Path": "/",
+        "CreateDate": "2019-06-30T06:44:06Z",
+        "UserId": "AIDAQLPA2CXSJQLFRWM5Z",
+        "Arn": "arn:aws:iam::024630662628:user/kubeuser"
+    }
+}
+----------------------------------------------------------------
+Create AWS IAM group via AWS CLI
+Creating group in IAM
+$ aws iam create-group --group-name kubegroup
+
+{
+    "Group": {
+        "Path": "/",
+        "CreateDate": "2019-06-30T06:59:28Z",
+        "GroupId": "AGPAQLPA2CXSN3D2ZLAZI",
+        "Arn": "arn:aws:iam::024630662628:group/kubegroup",
+        "GroupName": "kubegroup"
+    }
+}
+----------------------------------------
+now add user to the group 
+$ aws iam add-user-to-group --user-name kubeuser --group-name kubegroup
+to get details from the group
+$ aws iam get-group --group-name kubegroup
+ 
+{
+    "Group": {
+        "Path": "/",
+        "CreateDate": "2019-06-30T06:59:28Z",
+        "GroupId": "AGPAQLPA2CXSN3D2ZLAZI",
+        "Arn": "arn:aws:iam::024630662628:group/kubegroup",
+        "GroupName": "kubegroup"
+    },
+    "Users": [
+        {
+            "UserName": "kubeuser",
+            "Path": "/",
+            "CreateDate": "2019-06-30T06:44:06Z",
+            "UserId": "AIDAQLPA2CXSJQLFRWM5Z",
+            "Arn": "arn:aws:iam::024630662628:user/kubeuser"
+        }
+    ]
+}
+-----------------------------
+IAM Authentication - Username / Password
+$ aws iam create-login-profile --user-name kubeuser --password Password@123
+----------------------------------------------
+IAM Authentication - API Access Key
+$ aws iam create-access-keu --user-name kubeuser
+
+{
+    "AccessKey": {
+        "UserName": "kubeuser",
+        "Status": "Active",
+        "CreateDate": "2019-06-30T07:41:02Z",
+        "SecretAccessKey": "itnaz6zK3/L3nBAmsjRJnIScSYSpGUfUzcu/Pf4/",
+        "AccessKeyId": "AKIAQLPA2CXSNV2RR354"
+    }
+}
+------------------------------------------------------------------------
+To delete the Access key for iAM user
+$ aws iam delete-access-key --user-name kubeuser --access-key-id AKIAQLPA2CXSNV2RR354
+------------
+Saving the access key to file
+$ aws iam create-access-key --user-name kubeuser >> key.txt
+-------------------------------------------------------------------
+IAM Users/Groups - Assign and Remove Policy
+
+To attach a managed policy to an IAM group
+
+$ aws iam help
+$ aws iam attach-group-policy help
+
+To attache a group policy we need an ARN. got console on policies select any policy and copy the ARN
+
+$ aws iam attach-group-policy --policy-arn arn:aws:iam::aws:policy/AdministratorAccess --group-name kubegroup
+-----------------------------------------------
+How to Remove IAM User from IAM group
+
+$ aws iam remove-user-from-group --group-name kubegroup --user-name kubeuser
+----------------
+Now to remove the group
+$ aws iam delete-group --group-name kubegroup
+first need to detach group policy
+$ aws iam detach-group-policy help
+$ aws iam detach-group-policy -policy-arn arn:aws:iam::aws:policy/AdministratorAccess --group-name kubegroup
+
+-----------------------------
+Removing user from AWs first need to delete login profile
+$ aws iam delete-login-profile --user-name kubeuser
+now delete the USER
+$ aws iam delete-user --user-name kubeuser
+-------------------------------------------------------------
+CLI Commands for AWS ELB 
+Classic loadbalancer and Application loadblancer
+AWS ELB V2 operations
+$ aws elb help
+$ aws elbv2 help
+
+now create load blancer
+$ aws elbv2 create-load-blancer --name kube-loadbal --subnets subnet-b8b2bbc3 subnet-b99f48d1 subnet-e5f9b5a8 --security-group sg-0afd88592f50edd18
+
+"LoadBalancerArn": "arn:aws:elasticloadbalancing:us-east-2:024630662628:loadbalancer/app/kube-loadbal/473606ae558fb4bb",
+----------------------------------------
+What is target group 
+Create ELB Traget Groups - via AWS CLI
+$ aws elbv2 create-target-group --name kubegroup --protocol HTTP --port 80 --vpc-id vpc-1803cf70
+
+Now to register an ec2 instance to ELB
+$ aws elbv2 register-targets --target-group-arn arn:aws:elasticloadbalancing:us-east-2:024630662628:targetgroup/kubegroup/5a5c6949f9a971b1 --targets Id=i-00f82f958938219c6
+----------------------------------------------------------
+Create ELB Listener - via AWS CLI
+$ aws elbv2 create-listener --load-balancer-arn arn:aws:elasticloadbalancing:us-east-2:024630662628:loadbalancer/app/kube-loadbal/473606ae558fb4bb --protocol HTTP --port 80 --default-actions Type=forward,TargetGroupArn=arn:aws:elasticloadbalancing:us-east-2:024630662628:targetgroup/kubegroup/5a5c6949f9a971b1
+---------------------------------------------------------
+Now we can verify the health of the target by below command
+$ aws elbv2 describe-target-health --target-group-arn arn:aws:elasticloadbalancing:us-east-2:024630662628:targetgroup/kubegroup/5a5c6949f9a971b1
+---------------------------------
+$ aws elbv2 describe-load-balancers
+$ aws elbv2 describe-target-groups
+---------------------------------------------------------
+Next how to delete the loadblancer
+$ aws elbv2 delete-load-balancers --load-balancer-arn arn:aws:elasticloadbalancing:us-east-2:024630662628:loadbalancer/app/kube-loadbal/473606ae558fb4bb
+-------------------------------
+Now delete the target-group for loadblancer
+$ aws elbv2 delete-target-group --target-group-arn arn:aws:elasticloadbalancing:us-east-2:024630662628:targetgroup/kubegroup/5a5c6949f9a971b1
+---------------------------------------------------------------
+AWS Classic AWS ELB
+$ aws elb create-load-balancer --load-balancer-name kubeloadbal --listeners  "Protocol=HTTP,LoadBalancerPort=80,InstanceProtocol=HTTP,InstancePort=80" --subnets subnet-b8b2bbc3 subnet-b99f48d1 subnet-e5f9b5a8 --security-groups sg-0afd88592f50edd18
+-----------------------------------------------------------
+$ aws elb help
+$ aws elb delete-load-balancer help
+$ aws elb delete-load-balancer --load-balancer-name kubeloadbal
+---------------------------------------------------------------------
+Create Listener for classic Loadbalancer.
+$ aws elb create-load-balancer-listeners --load-balancer-name kubeloadbal --listener "Protocol=HTTP,LoadBalancerPort=80,InstanceProtocol=HTTP,InstancePort=80"
+---------------------------------------------------------------------------------------
+AWS internal Classic loadbalancer 
+$ aws elb create-load-balancer --load-balancer-name elbinternal --listeners "Protocol=HTTP,LoadBalancerPort=80,InstanceProtocol=HTTP,InstancePort=80" --scheme internal --subnets subnet-b8b2bbc3 --security-groups sg-0afd88592f50edd18
+
+{
+    "DNSName": "internal-elbinternal-475092202.us-east-2.elb.amazonaws.com"
+}
+--------------------------------------------------------------------
+OTHER Classic ELB commands how to register instance with loadblancer
+$ aws elb help
+$ aws elb register-instances-with-load-balancer help
+$ aws elb register-instances-with-load-balancer --load-balancer-name elbinternal --instances i-00f82f958938219c6
+--------------------------------------
+Deregister an instance
+$ aws elb deregister-instances-from-load-balancer --load-balancer-name elbinternal --instances i-00f82f958938219c6
+-------------------------------------
+DELETE Loadblancer internal
+$ aws elb delete-load-balancer --load-balancer-name elbinternal
+$ aws elb delete-load-balancer --load-balancer-name kubeloadbal
+---------------------------------------------------------------------------------------------
+CHAPTER 8: AWS CLI commands AWS SNS and AWS SQS
+AWS SNS components consisting topics
+    Owners are creater of the topic
+   Subscribers
+   Publisher
+-----------------------------------
+$ aws sns help
+$ aws sns create-topic --name kube-topic
+
+{
+    "TopicArn": "arn:aws:sns:us-east-2:024630662628:kube-topic"
+}
+-----------------
+Now we need to subscribe the topic
+$ aws sns subscribe --topic-arn arn:aws:sns:us-east-2:024630662628:kube-topic --protocol email --notification-endpoint saurav.das@evalueserve.com
+{
+    "SubscriptionArn": "pending confirmation"
+}
+----------------------------------------------
+Verfying the subscription
+$ aws sns list-subscriptions
+{
+    "Subscriptions": [
+        {
+            "Owner": "024630662628",
+            "Endpoint": "saurav.das@evalueserve.com",
+            "Protocol": "email",
+            "TopicArn": "arn:aws:sns:us-east-2:024630662628:kube-topic",
+            "SubscriptionArn": "arn:aws:sns:us-east-2:024630662628:kube-topic:884ebc08-b129-4257-93ef-769c71d01132"
+        }
+    ]
+}
+------------------------------------------
+Now publishing the sns 
+$ aws sns publish --topic-arn arn:aws:sns:us-east-2:024630662628:kube-topic --message "This is AWS cli learning tutorials"
+-----------------------------------------------------------------
+Unsbscribe topic 
+$ aws sns list-subscriptions
+$ aws sns unsubscribe --subscription-arn arn:aws:sns:us-east-2:024630662628:kube-topic:884ebc08-b129-4257-93ef-769c71d01132
+
+$ aws sns list-subscriptions
+Now to delete topic 
+--------------------------------
+$ aws sns list-topics
+$ aws sns delete-topic --topic-arn arn:aws:sns:us-east-2:024630662628:kube-topic
+$ aws sns list-topics
+--------------------------------------------------------------------
+AWS AQS Distributed Queue Sytem, Encourges decoupling
+$ aws sqs help
+create queue
+send-message
+receive-message
+$ aws sqs create-queue help
+$ sudo vim createqueue.json
+$ aws sqs create-queue --queue-name kubeq --attributes file://createqueue.json
+{
+    "QueueUrl": "https://us-east-2.queue.amazonaws.com/024630662628/kubeq"
+}
+Now verify the queue is create
+$ aws sqs list-queues
+-------------------------------------------------------------------------------
+Sending a message to our new queue
+$ aws sqs send-message --queue-url https://us-east-2.queue.amazonaws.com/024630662628/kubeq --message-body "This is example sqs queue msg"
+-------------------
+Now how to receive a message.
+$ aws sqs receive-message  --queue-url https://us-east-2.queue.amazonaws.com/024630662628/kubeq 
+------------------------------------
+The receiver or subscribr should delete the msg
+$ aws sqs delete-message --queue-url https://us-east-2.queue.amazonaws.com/024630662628/kubeq --receipt-handle AQEBDY4ScBsbHZNTNEqwBr22uMepHC+mmRVuA8RYVJV1DTFBcFJqNj6tYQxvVsbMlPu2OXoChucC9P9/pe8VD+aiNu6D0d94DzChZhuSnWhlq29zGEDf1dY/LAWy2BSA0uWyu5cEypk37ViuYo0GrCGs2LnJgGqimBi1JsaM9daqD3FOwN4B0YiQwhV1C9O6BiJAJ0qZP12rS2wAuaeh3zo0rja1psPg4D4nen8DZl8j/hVW4BxVAiTJffYB6ogirU5w0XvG1unT1gRSW0eruLJy8vbG/WxBTKGwqqn3mKanb85+XTMMhEVvZgZI3m7zkx34fjZGtuE3rDlFXE1xHCOmDatHM/qdoSYmGwtIAHl2/D1SAJHlFMznemIjZBao3WoC
+-----------------------------------------------------
+Sending a Message with delay 
+$ aws sqs send-message --queue-url https://us-east-2.queue.amazonaws.com/024630662628/kubeq --message-body "This is example 2" --delay-seconds 10
+-----------------------------------
+HOW DELETE A SQS queue
+
+$ aws sqs delete-queue --queue-url https://sqs.us-east-2.amazonaws.com/024630662628/kubeq
+-----------------------------------------------------------------------------------------------
+CHAPTER 10 AWS SES Simple email service
+----------------------------------------------
+AWS CLI and Shell Scripting

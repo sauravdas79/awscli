@@ -1,0 +1,117 @@
+provider "aws" {
+   access_key = "AKIAQLPA2CXSMEBDMHHT"
+   secret_key = "U0iqi69xO42Lb86XaPhzM7gJ3sOZNGT9/ecEDx2k"
+   region     = "us-east-2"
+}
+
+resource "aws_instance" "example" {
+   ami           = "ami-0653e888ec96eab9b"
+   instance_type = "t2.micro"
+}
+
+-----------------------------------------------------
+Whenever you create a new directory you have do terraform init
+$ sudo terraform init
+$ sudo terraform plan
+------------------------------------------
+. Keeping the changes in an out file
+$ sudo terraform plan -out out.terraform
+------------------------------------------------------------
+. Then only apply those changes to the infrastructure
+$ sudo terraform apply out.terraform 
+$ rm changes.terraform
+
+Afterwards the infrasture can be destoryed again:
+$ sudo terraform destroy
+------------------------------------
+***terraform.tfvars*********file*******
+AWS_ACCESS_KEY = "AKIAQLPA2CXSMEBDMHHT"
+AWS_SECRET_KEY = "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"
+AWS_REGION = "us-east-2"
+------------------------------------------------------------
+**********provider.tf****file**********
+provider "aws" {
+   access_key = "${var.AWS_ACCESS_KEY}"
+   secret_key = "${var.AWS_SECRET_KEY}"
+   aws_region = "${var.AWS_REGION}"
+}
+-------------------------------------------------------------
+**********vars.tf******file********
+variable "AWS_ACCESS_KEY" {}
+variable "AWS_SECRET_KEY" {}
+variable "AWS_REGION" {
+  default = "us-east-2"
+}
+variable "AMIS" {
+  type = "map"
+  default = {
+    us-east-2 = "ami-0393d300e4dd93cde"
+    us-west-2 = "ami-010cb9019f3021398"
+    us-east-1 = "ami-0b2f2d7c5173e3a44"
+  }
+}
+----------------------------------------------------------------
+******instance.tf-********file-------------------
+resource "aws_instance" "example" {
+  ami      = "${lookup(var.AMIS, var.AWS_REGION0}"
+  instance_type = "t2.micro"
+}
+---------------------------------------------------------------
+$ ls instance.tf  provider.tf  terraform.tfvars  vars.tf
+*** now to run first terraform init
+$ sudo terraform init
+$ sudo terraform plan
+$ sudo tarraform apply -out out.terraform
+-------------------------------------------------------------------------
+You can also use the attributes in a script: to output to local machine
+resource "aws_instance" "example"{
+  ami   = "${lookup(var.AMIS, var.AWS_REGION)}"
+  instance_type = "t2.micro"
+  provisioner "local-exec" {
+     command = "echo ${aws_instance.example.private_ip} >> private_ips.txt"
+  }
+}
+-----------------------------------------------------------------------------------
+Subnet masks VPC
+            network mask
+10.0.0.0/8  255.0.0.0       16,777214  10.0.0.1
+10.0.0.0/16 255.255.0.0     65,536   10.0.5.1
+10.1.0.0/16 255.255.0.0     65,536   10.1.5.1
+10.0.0.0/24 255.255.255.0   256      10.0.0.1
+10.0.1.0/24 255.255.255.0   256      10.0.1.1
+10.0.0.5/32 255.255.255.255 1      10.0.0.5
+----------------------------------------------------
+Private Subnets only be used in private cannot be used in internet
+Range
+10.0.0.0/8    
+172.16.0.0/12     default vpc
+192.168.0.0/16 
+--------------------------------------------
+Creating the VPC
+1) every availability zone has its own public and private subnet
+
+2)  Instances started in subnet main-public-3 will have IP address 10.0.3.x and will be launched in
+the us-east-2c availablity zone (Amazon call 1 datacenter an AZ)
+
+3) An Instance launched in main-private-1 will have an IP address 10.0.4.x and will reside in Amazon's us-east-1a AZ
+
+4) All the public subnets are connected to an Internet Gateway. These instances will also have
+   a public IP address, allowing them to be reachable from the internet.
+
+5) Instances launched in the private subnets don't get a public IP address so they will not be 
+   reachable from the internet
+6) Instances from main-public can reach instances from main-private, because they're all in same    vpc, if you set the firewall
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
